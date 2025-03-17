@@ -12,7 +12,18 @@ export type Note = {
 
 export async function getNotes() {
   const supabase = await createClient()
-  const { data: notes, error } = await supabase.from('notes').select('*')
+  
+  // Get the current user
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) {
+    return []
+  }
+  
+  // Only fetch notes belonging to the current user
+  const { data: notes, error } = await supabase
+    .from('notes')
+    .select('*')
+    .eq('user_id', userData.user.id)
   
   if (error) {
     console.error('Error fetching notes:', error)
@@ -37,11 +48,14 @@ export async function createNote(formData: FormData) {
     return { error: 'User not authenticated' }
   }
   
-  const { error } = await supabase.from('notes').insert({
-    title,
+  // Create note object with available fields
+  const noteData: { title: string; content?: string; user_id: string } = { 
+    title, 
     content,
     user_id: userData.user.id
-  })
+  }
+  
+  const { error } = await supabase.from('notes').insert(noteData)
   
   if (error) {
     console.error('Error creating note:', error)
@@ -63,10 +77,33 @@ export async function updateNote(formData: FormData) {
     return { error: 'ID and title are required' }
   }
   
+  // Get the current user
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) {
+    return { error: 'User not authenticated' }
+  }
+  
+  // Verify note ownership before update
+  const { data: note } = await supabase
+    .from('notes')
+    .select('user_id')
+    .eq('id', id)
+    .single()
+    
+  if (!note) {
+    return { error: 'Note not found' }
+  }
+  
+  if (note.user_id !== userData.user.id) {
+    return { error: 'You can only update your own notes' }
+  }
+  
+  // Proceed with update after ownership verification
   const { error } = await supabase
     .from('notes')
     .update({ title, content })
     .eq('id', id)
+    .eq('user_id', userData.user.id)  
   
   if (error) {
     console.error('Error updating note:', error)
@@ -84,10 +121,33 @@ export async function deleteNote(id: string) {
     return { error: 'ID is required' }
   }
   
+  // Get the current user
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) {
+    return { error: 'User not authenticated' }
+  }
+  
+  // Verify note ownership before deletion
+  const { data: note } = await supabase
+    .from('notes')
+    .select('user_id')
+    .eq('id', id)
+    .single()
+    
+  if (!note) {
+    return { error: 'Note not found' }
+  }
+  
+  if (note.user_id !== userData.user.id) {
+    return { error: 'You can only delete your own notes' }
+  }
+  
+  // Proceed with deletion after ownership verification
   const { error } = await supabase
     .from('notes')
     .delete()
     .eq('id', id)
+    .eq('user_id', userData.user.id) // Additional security layer
   
   if (error) {
     console.error('Error deleting note:', error)
