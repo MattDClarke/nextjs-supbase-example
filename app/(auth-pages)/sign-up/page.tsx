@@ -45,7 +45,9 @@ export default async function Signup(props: {
           <FormMessage message={searchParams} />
         </div>
       </form>
-      <SmtpMessage />
+      <div className="mx-auto">
+        <SmtpMessage />
+      </div>
     </>
   );
 }

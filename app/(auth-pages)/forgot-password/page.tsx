@@ -31,7 +31,9 @@ export default async function ForgotPassword(props: {
           <FormMessage message={searchParams} />
         </div>
       </form>
-      <SmtpMessage />
+      <div className="mx-auto">
+        <SmtpMessage /> 
+      </div>
     </>
   );
 }
