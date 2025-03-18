@@ -41,7 +41,7 @@ export function NoteForm({ note, isOpen, onClose }: NoteFormProps) {
         onClose()
       }
     } catch (e) {
-      setError("An unexpected error occurred")
+      setError("An unexpected error occurred");
       console.error(e)
     } finally {
       setIsSubmitting(false)

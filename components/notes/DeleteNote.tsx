@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import * as Sentry from "@sentry/nextjs";
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -35,7 +36,8 @@ export function DeleteNote({ noteId, isOpen, onClose }: DeleteNoteProps) {
         onClose()
       }
     } catch (e) {
-      setError("An unexpected error occurred")
+      setError("An unexpected error occurred");
+      Sentry.captureException(e);
       console.error(e)
     } finally {
       setIsDeleting(false)

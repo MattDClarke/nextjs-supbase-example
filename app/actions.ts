@@ -167,48 +167,36 @@ export async function getNotes() {
 }
 
 export async function createNote(formData: FormData) {
-  return await Sentry.withServerActionInstrumentation(
-    "createNoteServerAction", // The name you want to associate this Server Action with in Sentry
-    {
-      formData, // Optionally pass in the form data
-    },
-    async () => {
-      const supabase = await createClient()
+  const supabase = await createClient()
+  const title = formData.get('title') as string
+  const content = formData.get('content') as string
   
-      const title = formData.get('title') as string
-      const content = formData.get('content') as string
-      
-      if (!title) {
-        return { error: 'Title is required' }
-      }
-      
-      const { data: userData } = await supabase.auth.getUser()
-      if (!userData.user) {
-        return { error: 'User not authenticated' }
-      }
-      
-      // Intentionally wait for 20 seconds to trigger a TaskCanceledException
-      await wait(20000)
-      
-      // Create note object with available fields
-      const noteData: { title: string; content?: string; user_id: string } = { 
-        title, 
-        content,
-        user_id: userData.user.id
-      }
-      
-      const { error } = await supabase.from('notes').insert(noteData)
-      
-      if (error) {
-        console.error('Error creating note:', error);
-        Sentry.captureException(error);
-        return { error: error.message }
-      }
-      
-      revalidatePath('/notes')
-      return { success: true }
-    },
-  );
+  if (!title) {
+    return { error: 'Title is required' }
+  }
+  
+  const { data: userData } = await supabase.auth.getUser()
+  if (!userData.user) {
+    return { error: 'User not authenticated' }
+  }
+  
+  // Create note object with available fields
+  const noteData: { title: string; content?: string; user_id: string } = { 
+    title, 
+    content,
+    user_id: userData.user.id
+  }
+  
+  const { error } = await supabase.from('notes').insert(noteData)
+  
+  if (error) {
+    console.error('Error creating note:', error);
+    Sentry.captureException(error);
+    return { error: error.message }
+  }
+  
+  revalidatePath('/notes')
+  return { success: true }
 }
 
 export async function updateNote(formData: FormData) {
@@ -216,6 +204,7 @@ export async function updateNote(formData: FormData) {
     "updateNoteServerAction", // The name you want to associate this Server Action with in Sentry
     {
       formData, // Optionally pass in the form data
+      recordResponse: true, 
     },
     async () => {
       const supabase = await createClient()
@@ -340,46 +329,60 @@ export async function updateNote(formData: FormData) {
 //   return { success: true }
 // }
 
-export async function deleteNote(id: string) {
-  const supabase = await createClient()
+
+export  async function deleteNote(id: string) {
+    "use server";
+    return await Sentry.withServerActionInstrumentation(
+      "deleteNoteServerAction", // The name you want to associate this Server Action with in Sentry
+      {
+        recordResponse: true, // Optionally record the server action response
+      },
+      async () => {
+        const supabase = await createClient()
   
-  if (!id) {
-    return { error: 'ID is required' }
+        if (!id) {
+          return { error: 'ID is required' }
+        }
+      
+        // Intentionally wait for 20 seconds to trigger a
+        // TaskCanceledException
+        await wait(20000)
+      
+        // Get the current user
+        const { data: userData } = await supabase.auth.getUser()
+        if (!userData.user) {
+          return { error: 'User not authenticated' }
+        }
+        
+        // Verify note ownership before deletion
+        const { data: note } = await supabase
+          .from('notes')
+          .select('user_id')
+          .eq('id', id)
+          .single()
+          
+        if (!note) {
+          return { error: 'Note not found' }
+        }
+        
+        if (note.user_id !== userData.user.id) {
+          return { error: 'You can only delete your own notes' }
+        }
+        
+        // Proceed with deletion after ownership verification
+        const { error } = await supabase
+          .from('notes')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', userData.user.id) // Additional security layer
+        
+        if (error) {
+          console.error('Error deleting note:', error)
+          return { error: error.message }
+        }
+        
+        revalidatePath('/notes')
+        return { success: true }
+      },
+    );
   }
-  
-  // Get the current user
-  const { data: userData } = await supabase.auth.getUser()
-  if (!userData.user) {
-    return { error: 'User not authenticated' }
-  }
-  
-  // Verify note ownership before deletion
-  const { data: note } = await supabase
-    .from('notes')
-    .select('user_id')
-    .eq('id', id)
-    .single()
-    
-  if (!note) {
-    return { error: 'Note not found' }
-  }
-  
-  if (note.user_id !== userData.user.id) {
-    return { error: 'You can only delete your own notes' }
-  }
-  
-  // Proceed with deletion after ownership verification
-  const { error } = await supabase
-    .from('notes')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', userData.user.id) // Additional security layer
-  
-  if (error) {
-    console.error('Error deleting note:', error)
-    return { error: error.message }
-  }
-  
-  revalidatePath('/notes')
-  return { success: true }
-} 
