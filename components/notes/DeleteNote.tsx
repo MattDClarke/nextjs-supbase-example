@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { deleteNote } from "@/app/actions/notes"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -11,6 +10,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog"
+import { deleteNote } from "@/app/actions"
 
 interface DeleteNoteProps {
   noteId: string

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Note, createNote, updateNote } from "@/app/actions/notes"
+import { Note, createNote, updateNote } from "@/app/actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
