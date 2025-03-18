@@ -18,7 +18,7 @@ export default async function Home() {
         {/* {hasEnvVars ? <SignUpUserSteps /> : <ConnectSupabaseSteps />} */}
         {!user ? (
           <div className="max-w-2xl">
-            <p className="text-lg text-gray-600 mb-4">
+            <p className="text-lg text-gray-600 mb-4 dark:text-gray-300">
               Welcome to Notes - your simple, secure digital notebook. Capture your thoughts, ideas, and important information with ease. Our minimalist design helps you focus on what matters most: your content.
             </p>
         </div>
