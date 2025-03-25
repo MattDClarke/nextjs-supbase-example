@@ -10,6 +10,7 @@ export default function GlobalError({
   error: Error & { digest?: string };
 }) {
   useEffect(() => {
+    console.log("global-error.tsx");
     Sentry.captureException(error);
   }, [error]);
 

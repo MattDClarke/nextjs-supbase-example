@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { NoteItem } from '@/components/notes/NoteItem';
 import { CreateNote } from '@/components/notes/CreateNote';
-import { getNotes } from '../actions';
+import { getNotes, Note } from '../actions';
 
 export default async function NotesPage() {
   const supabase = await createClient()
@@ -16,7 +16,9 @@ export default async function NotesPage() {
     return redirect("/sign-in");
   }
 
-  const notes = await getNotes();
+  // This will throw an error if there's a problem, which will
+  // bubble up to the nearest error boundary
+  const notes = await getNotes() as Note[];
 
   return (
     <>

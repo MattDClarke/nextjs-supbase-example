@@ -143,28 +143,88 @@ export const signOutAction = async () => {
   return redirect("/sign-in");
 };
 
+// No timeout for this function
 export async function getNotes() {
-  const supabase = await createClient()
+  "use server";
+  return await Sentry.withServerActionInstrumentation(
+    "getNotesServerAction", // The name you want to associate this Server Action with in Sentry
+    {
+      recordResponse: true, // Optionally record the server action response
+    },
+    async () => {
+      const supabase = await createClient()
   
-  // Get the current user
-  const { data: userData } = await supabase.auth.getUser()
-  if (!userData.user) {
-    return []
-  }
-  
-  // Only fetch notes belonging to the current user
-  const { data: notes, error } = await supabase
-    .from('notes')
-    .select('*')
-    .eq('user_id', userData.user.id)
-  
-  if (error) {
-    console.error('Error fetching notes:', error)
-    return []
-  }
-  
-  return notes
+      // Get the current user
+      const { data: userData } = await supabase.auth.getUser()
+      if (!userData.user) {
+        return []
+      }
+      
+      // Only fetch notes belonging to the current user
+      const { data: notes, error } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('user_id', userData.user.id)
+      
+      if (error) {
+        console.error('Error fetching notes:', error)
+        return []
+      }
+      
+      return notes;
+    },
+  );
 }
+
+// this function will time out
+// export async function getNotes() {
+//   "use server";
+//   try {
+//     return await Sentry.withServerActionInstrumentation(
+//       "getNotesServerAction",
+//       {
+//         recordResponse: true,
+//       },
+//       async () => {
+//         // Get the client
+//         const supabase = await createClient();
+        
+//         // Get the current user
+//         const { data: userData } = await supabase.auth.getUser();
+//         if (!userData.user) {
+//           throw new Error("User not authenticated");
+//         }
+        
+//         // Call the slow procedure to get notes - this will time out
+//         const { data: notes, error } = await supabase.rpc(
+//           'slow_get_notes',
+//           { p_user_id: userData.user.id }
+//         );
+        
+//         // If there's a database error, throw it
+//         if (error) {
+//           console.error('Error fetching notes:', error);
+//           Sentry.captureException(error);
+//           throw new Error("Failed to retrieve notes");
+//         }
+        
+//         // Return the notes
+//         return notes;
+//       },
+//     );
+//   } catch (error) {
+//     // Capture the error in Sentry with full details
+//     console.error('Error in getNotes:', error);
+//     Sentry.captureException(error);
+    
+//     // Create a custom error with a generic message
+//     const clientError = new Error("Something went wrong while loading your notes. Please try again later.");
+    
+//     // Rethrow the error with generic message for the client
+//     throw clientError;
+//   }
+// }
+
 
 export async function createNote(formData: FormData) {
   const supabase = await createClient()
@@ -192,7 +252,7 @@ export async function createNote(formData: FormData) {
   if (error) {
     console.error('Error creating note:', error);
     Sentry.captureException(error);
-    return { error: error.message }
+    return { error: 'Error creating note' }
   }
   
   revalidatePath('/notes')
@@ -238,29 +298,27 @@ export async function updateNote(formData: FormData) {
         return { error: 'You can only update your own notes' }
       }
       
-      // // Proceed with update after ownership verification
-      // const { error } = await supabase
-      //   .from('notes')
-      //   .update({ title, content })
-      //   .eq('id', id)
-      //   .eq('user_id', userData.user.id)  
-    
-    
+      // Proceed with update after ownership verification
+      const { error } = await supabase
+        .from('notes')
+        .update({ title, content })
+        .eq('id', id)
+        .eq('user_id', userData.user.id)  
     
         // Use executeRaw with pg_sleep to simulate slow network
-        const { error } = await supabase.rpc('slow_update', {
-          p_id: id,
-          p_title: title,
-          p_content: content,
-          p_user_id: userData.user.id
-        })
+        // const { error } = await supabase.rpc('slow_update', {
+        //   p_id: id,
+        //   p_title: title,
+        //   p_content: content,
+        //   p_user_id: userData.user.id
+        // })
       
         if (error) {
           console.error('Error updating note:', error);
     
           Sentry.captureException(error);
     
-          return { error: error.message }
+          return { error: 'Error updating note' }
         }
       
       revalidatePath('/notes')
@@ -268,66 +326,6 @@ export async function updateNote(formData: FormData) {
     },
   );
 }
-// export async function updateNote(formData: FormData) {
-//   const supabase = await createClient()
-  
-//   const id = formData.get('id') as string
-//   const title = formData.get('title') as string
-//   const content = formData.get('content') as string
-  
-//   if (!id || !title) {
-//     return { error: 'ID and title are required' }
-//   }
-  
-//   // Get the current user
-//   const { data: userData } = await supabase.auth.getUser()
-//   if (!userData.user) {
-//     return { error: 'User not authenticated' }
-//   }
-  
-//   // Verify note ownership before update
-//   const { data: note } = await supabase
-//     .from('notes')
-//     .select('user_id')
-//     .eq('id', id)
-//     .single()
-    
-//   if (!note) {
-//     return { error: 'Note not found' }
-//   }
-  
-//   if (note.user_id !== userData.user.id) {
-//     return { error: 'You can only update your own notes' }
-//   }
-  
-//   // // Proceed with update after ownership verification
-//   // const { error } = await supabase
-//   //   .from('notes')
-//   //   .update({ title, content })
-//   //   .eq('id', id)
-//   //   .eq('user_id', userData.user.id)  
-
-
-
-//     // Use executeRaw with pg_sleep to simulate slow network
-//     const { error } = await supabase.rpc('slow_update', {
-//       p_id: id,
-//       p_title: title,
-//       p_content: content,
-//       p_user_id: userData.user.id
-//     })
-  
-//     if (error) {
-//       console.error('Error updating note:', error);
-
-//       Sentry.captureException(error);
-
-//       return { error: error.message }
-//     }
-  
-//   revalidatePath('/notes')
-//   return { success: true }
-// }
 
 
 export  async function deleteNote(id: string) {
@@ -346,7 +344,7 @@ export  async function deleteNote(id: string) {
       
         // Intentionally wait for 20 seconds to trigger a
         // TaskCanceledException
-        await wait(20000)
+        // await wait(20000)
       
         // Get the current user
         const { data: userData } = await supabase.auth.getUser()
@@ -378,7 +376,7 @@ export  async function deleteNote(id: string) {
         
         if (error) {
           console.error('Error deleting note:', error)
-          return { error: error.message }
+          return { error: 'Error deleting note' }
         }
         
         revalidatePath('/notes')
